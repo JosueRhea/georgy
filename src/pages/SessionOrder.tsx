@@ -57,6 +57,7 @@ export default function SessionOrder() {
     sessionId ? getStoredName(sessionId) : null,
   );
   const [carne, setCarne] = useState("");
+  const [carne2, setCarne2] = useState("");
   const [complements, setComplements] = useState<string[]>([]);
   const [complementFreeText, setComplementFreeText] = useState("");
   const [notes, setNotes] = useState("");
@@ -70,12 +71,14 @@ export default function SessionOrder() {
   );
   const [lockToggling, setLockToggling] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<Id<"orders"> | null>(null);
+  const [useManualMode, setUseManualMode] = useState(false);
   const [editForm, setEditForm] = useState<{
     personName: string;
     carne: string;
+    carne2: string;
     complements: string[];
     notes: string;
-  }>({ personName: "", carne: "", complements: [], notes: "" });
+  }>({ personName: "", carne: "", carne2: "", complements: [], notes: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -111,6 +114,7 @@ export default function SessionOrder() {
     _id: Id<"orders">;
     personName: string;
     carne: string;
+    carne2?: string;
     complements: string[];
     notes?: string;
   }) {
@@ -118,6 +122,7 @@ export default function SessionOrder() {
     setEditForm({
       personName: order.personName,
       carne: order.carne,
+      carne2: order.carne2 ?? "",
       complements: [...order.complements],
       notes: order.notes ?? "",
     });
@@ -129,8 +134,9 @@ export default function SessionOrder() {
     if (!sessionId || editingOrderId == null) return;
     setEditError(null);
     setEditSubmitting(true);
-    const { personName, carne, complements, notes } = editForm;
+    const { personName, carne, carne2, complements, notes } = editForm;
     const carneValue = carne.trim();
+    const carne2Value = carne2.trim();
     if (!carneValue) {
       setEditError("Elige una carne.");
       setEditSubmitting(false);
@@ -146,6 +152,7 @@ export default function SessionOrder() {
       sessionId: sessionId as Id<"sessions">,
       personName: personName.trim(),
       carne: carneValue,
+      carne2: carne2Value || undefined,
       complements,
       notes: notes.trim() || undefined,
       clientId: browserUserId || undefined,
@@ -202,9 +209,13 @@ export default function SessionOrder() {
     setError(null);
     setSubmitting(true);
     let carneValue = carne.trim();
+    let carne2Value = carne2.trim();
     let complementsValue = complements;
-    if (!hasMenu) {
+    const isManual =
+      !hasMenu || (hasMenu && isSessionOwner && useManualMode);
+    if (isManual) {
       carneValue = carne.trim();
+      carne2Value = carne2.trim();
       const fromText = complementFreeText
         .split(/\n/)
         .map((s) => s.trim())
@@ -217,7 +228,7 @@ export default function SessionOrder() {
       setSubmitting(false);
       return;
     }
-    if (hasMenu && complementsValue.length === 0) {
+    if (!isManual && complementsValue.length === 0) {
       setError("Elige al menos un complemento (máx. 3).");
       setSubmitting(false);
       return;
@@ -226,6 +237,7 @@ export default function SessionOrder() {
       sessionId: sessionId as Id<"sessions">,
       personName: name.trim(),
       carne: carneValue,
+      carne2: carne2Value || undefined,
       complements: complementsValue,
       notes: notes.trim() || undefined,
       clientId: getOrCreateBrowserUserId() || undefined,
@@ -427,32 +439,76 @@ export default function SessionOrder() {
             >
               <p className="text-sm font-medium">Pedido de {name}</p>
 
-              {hasMenu ? (
+              {hasMenu && isSessionOwner && (
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>Modo de pedido:</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUseManualMode((v) => !v)}
+                  >
+                    {useManualMode ? "Usar menú" : "Escribir manualmente"}
+                  </Button>
+                </div>
+              )}
+
+              {hasMenu && !useManualMode ? (
                 <>
                   <div>
-                    <p className="mb-2 text-sm font-medium">Carne (elige 1)</p>
+                    <p className="mb-2 text-sm font-medium">
+                      Carne (máx. 2)
+                    </p>
                     <div className="flex flex-wrap gap-2">
-                      {menu!.carnes.map((item) => (
-                        <label
-                          key={item}
-                          className={cn(
-                            "cursor-pointer rounded-md border px-3 py-2 text-sm transition-colors",
-                            carne === item
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-input hover:bg-muted/50",
-                          )}
-                        >
-                          <input
-                            type="radio"
-                            name="carne"
-                            value={item}
-                            checked={carne === item}
-                            onChange={() => setCarne(item)}
-                            className="sr-only"
-                          />
-                          {item}
-                        </label>
-                      ))}
+                      {menu!.carnes.map((item) => {
+                        const selected = carne === item || carne2 === item;
+                        const selectedCount =
+                          (carne ? 1 : 0) +
+                          (carne2 && carne2 !== carne ? 1 : 0);
+                        const disabled = !selected && selectedCount >= 2;
+                        return (
+                          <label
+                            key={item}
+                            className={cn(
+                              "cursor-pointer rounded-md border px-3 py-2 text-sm transition-colors",
+                              selected
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-input hover:bg-muted/50",
+                              disabled && !selected && "opacity-50",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => {
+                                const isSelected =
+                                  carne === item || carne2 === item;
+                                if (isSelected) {
+                                  if (carne === item) {
+                                    setCarne("");
+                                  }
+                                  if (carne2 === item) {
+                                    setCarne2("");
+                                  }
+                                  return;
+                                }
+                                const count =
+                                  (carne ? 1 : 0) +
+                                  (carne2 && carne2 !== carne ? 1 : 0);
+                                if (count >= 2) return;
+                                if (!carne) {
+                                  setCarne(item);
+                                } else if (!carne2 && carne !== item) {
+                                  setCarne2(item);
+                                }
+                              }}
+                              disabled={disabled}
+                              className="sr-only"
+                            />
+                            {item}
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                   <div>
@@ -501,6 +557,25 @@ export default function SessionOrder() {
                       value={carne}
                       onChange={(e) => setCarne(e.target.value)}
                       placeholder="Ej. Pechugas barbacoa"
+                      className={cn(
+                        "w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                        "focus:outline-none focus:ring-2 focus:ring-ring",
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="carne2"
+                      className="mb-1 block text-sm font-medium"
+                    >
+                      Segunda carne (opcional)
+                    </label>
+                    <input
+                      id="carne2"
+                      type="text"
+                      value={carne2}
+                      onChange={(e) => setCarne2(e.target.value)}
+                      placeholder="Ej. Costilla"
                       className={cn(
                         "w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
                         "focus:outline-none focus:ring-2 focus:ring-ring",
@@ -615,32 +690,72 @@ export default function SessionOrder() {
                         <>
                           <div>
                             <p className="mb-1 text-xs font-medium">
-                              Carne (elige 1)
+                              Carne (máx. 2)
                             </p>
                             <div className="flex flex-wrap gap-1.5">
-                              {menu!.carnes.map((item) => (
-                                <label
-                                  key={item}
-                                  className={cn(
-                                    "cursor-pointer rounded border px-2 py-1 text-xs transition-colors",
-                                    editForm.carne === item
-                                      ? "border-primary bg-primary/10 text-primary"
-                                      : "border-input hover:bg-muted/50",
-                                  )}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="edit-carne"
-                                    value={item}
-                                    checked={editForm.carne === item}
-                                    onChange={() =>
-                                      setEditForm((f) => ({ ...f, carne: item }))
-                                    }
-                                    className="sr-only"
-                                  />
-                                  {item}
-                                </label>
-                              ))}
+                              {menu!.carnes.map((item) => {
+                                const selected =
+                                  editForm.carne === item ||
+                                  editForm.carne2 === item;
+                                const selectedCount =
+                                  (editForm.carne ? 1 : 0) +
+                                  (editForm.carne2 &&
+                                  editForm.carne2 !== editForm.carne
+                                    ? 1
+                                    : 0);
+                                const disabled = !selected && selectedCount >= 2;
+                                return (
+                                  <label
+                                    key={item}
+                                    className={cn(
+                                      "cursor-pointer rounded border px-2 py-1 text-xs transition-colors",
+                                      selected
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-input hover:bg-muted/50",
+                                      disabled && !selected && "opacity-50",
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      onChange={() => {
+                                        const isSelected =
+                                          editForm.carne === item ||
+                                          editForm.carne2 === item;
+                                        if (isSelected) {
+                                          setEditForm((f) => ({
+                                            ...f,
+                                            carne:
+                                              f.carne === item ? "" : f.carne,
+                                            carne2:
+                                              f.carne2 === item ? "" : f.carne2,
+                                          }));
+                                          return;
+                                        }
+                                        const count =
+                                          (editForm.carne ? 1 : 0) +
+                                          (editForm.carne2 &&
+                                          editForm.carne2 !== editForm.carne
+                                            ? 1
+                                            : 0);
+                                        if (count >= 2) return;
+                                        setEditForm((f) => {
+                                          if (!f.carne) {
+                                            return { ...f, carne: item };
+                                          }
+                                          if (!f.carne2 && f.carne !== item) {
+                                            return { ...f, carne2: item };
+                                          }
+                                          return f;
+                                        });
+                                      }}
+                                      disabled={disabled}
+                                      className="sr-only"
+                                    />
+                                    {item}
+                                  </label>
+                                );
+                              })}
                             </div>
                           </div>
                           <div>
@@ -804,7 +919,9 @@ export default function SessionOrder() {
                         )}
                       </div>
                       <p className="mt-1 text-muted-foreground">
-                        {order.carne}
+                        {order.carne2
+                          ? `${order.carne} + ${order.carne2}`
+                          : order.carne}
                         {order.complements.length > 0 &&
                           ` · ${order.complements.join(", ")}`}
                         {order.notes && ` · ${order.notes}`}

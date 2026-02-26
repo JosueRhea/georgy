@@ -72,6 +72,7 @@ const orderValidator = v.object({
   sessionId: v.id("sessions"),
   personName: v.string(),
   carne: v.string(),
+  carne2: v.optional(v.string()),
   complements: v.array(v.string()),
   notes: v.optional(v.string()),
   clientId: v.optional(v.string()),
@@ -108,6 +109,7 @@ export const addOrder = mutation({
     sessionId: v.id("sessions"),
     personName: v.string(),
     carne: v.string(),
+    carne2: v.optional(v.string()),
     complements: v.array(v.string()),
     notes: v.optional(v.string()),
     clientId: v.optional(v.string()),
@@ -122,6 +124,7 @@ export const addOrder = mutation({
       sessionId: args.sessionId,
       personName: args.personName.trim(),
       carne: args.carne,
+      carne2: args.carne2?.trim() || undefined,
       complements: args.complements,
       notes: args.notes?.trim() || undefined,
       clientId: args.clientId ?? undefined,
@@ -135,6 +138,7 @@ export const updateOrder = mutation({
     sessionId: v.id("sessions"),
     personName: v.string(),
     carne: v.string(),
+    carne2: v.optional(v.string()),
     complements: v.array(v.string()),
     notes: v.optional(v.string()),
     clientId: v.optional(v.string()),
@@ -156,6 +160,7 @@ export const updateOrder = mutation({
     await ctx.db.patch("orders", args.orderId, {
       personName: args.personName.trim(),
       carne: args.carne,
+      carne2: args.carne2?.trim() || undefined,
       complements: args.complements,
       notes: args.notes?.trim() || undefined,
     });
@@ -204,7 +209,10 @@ export const getSummaryText = query({
     orders.forEach((order, i) => {
       const ord = ordinals[i] ?? `plato ${i + 1}`;
       text += `El ${ord} con:\n`;
-      text += `${capitalize(order.carne)}.\n`;
+      const carneMain = capitalize(order.carne);
+      const carneSecond = order.carne2 ? capitalize(order.carne2) : null;
+      const carneText = carneSecond ? `${carneMain} y ${carneSecond}` : carneMain;
+      text += `${carneText}.\n`;
       order.complements.forEach((c) => {
         text += `${capitalize(c)}.\n`;
       });
