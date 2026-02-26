@@ -211,8 +211,7 @@ export default function SessionOrder() {
     let carneValue = carne.trim();
     let carne2Value = carne2.trim();
     let complementsValue = complements;
-    const isManual =
-      !hasMenu || (hasMenu && isSessionOwner && useManualMode);
+    const isManual = !hasMenu || (hasMenu && useManualMode);
     if (isManual) {
       carneValue = carne.trim();
       carne2Value = carne2.trim();
@@ -439,7 +438,7 @@ export default function SessionOrder() {
             >
               <p className="text-sm font-medium">Pedido de {name}</p>
 
-              {hasMenu && isSessionOwner && (
+              {hasMenu && (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>Modo de pedido:</span>
                   <Button
