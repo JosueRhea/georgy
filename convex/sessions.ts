@@ -168,6 +168,33 @@ export const updateOrder = mutation({
   },
 });
 
+export const deleteOrder = mutation({
+  args: {
+    orderId: v.id("orders"),
+    sessionId: v.id("sessions"),
+    clientId: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+    if (!session) throw new Error("Session not found");
+    if (session.locked) throw new Error("No se aceptan más pedidos ni modificaciones.");
+
+    const order = await ctx.db.get(args.orderId);
+    if (!order || order.sessionId !== args.sessionId) throw new Error("Order not found");
+
+    const callerId = args.clientId ?? null;
+    const isSessionOwner = session.ownerId != null && session.ownerId === callerId;
+    const isOrderOwner = order.clientId != null && order.clientId === callerId;
+    if (!isSessionOwner && !isOrderOwner) {
+      throw new Error("No puedes eliminar este pedido.");
+    }
+
+    await ctx.db.delete(args.orderId);
+    return null;
+  },
+});
+
 const ordinals = [
   "primero",
   "segundo",

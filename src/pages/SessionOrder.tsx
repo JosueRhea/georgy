@@ -48,6 +48,7 @@ export default function SessionOrder() {
   );
   const addOrder = useMutation(api.sessions.addOrder);
   const updateOrder = useMutation(api.sessions.updateOrder);
+  const deleteOrder = useMutation(api.sessions.deleteOrder);
   const setSessionLocked = useMutation(api.sessions.setSessionLocked);
 
   const [name, setName] = useState(() =>
@@ -127,6 +128,23 @@ export default function SessionOrder() {
       notes: order.notes ?? "",
     });
     setEditError(null);
+  }
+
+  function handleDeleteOrder(orderId: Id<"orders">) {
+    if (!sessionId) return;
+    if (!window.confirm("¿Seguro que quieres eliminar este pedido?")) return;
+    deleteOrder({
+      orderId,
+      sessionId: sessionId as Id<"sessions">,
+      clientId: browserUserId || undefined,
+    }).catch((err) => {
+      // Surface a simple error message if deletion fails
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Error al eliminar el pedido",
+      );
+    });
   }
 
   function handleEditOrderSubmit(e: React.FormEvent) {
@@ -905,17 +923,30 @@ export default function SessionOrder() {
                     <>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-medium">{order.personName}</span>
-                        {canEditOrder(order) && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => openEditOrder(order)}
-                          >
-                            Editar
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {canEditOrder(order) && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => openEditOrder(order)}
+                            >
+                              Editar
+                            </Button>
+                          )}
+                          {isSessionOwner && !isLocked && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-destructive"
+                              onClick={() => handleDeleteOrder(order._id)}
+                            >
+                              Eliminar
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <p className="mt-1 text-muted-foreground">
                         {order.carne2
