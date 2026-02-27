@@ -126,7 +126,7 @@ export default function SessionOrder() {
     setEditForm({
       personName: order.personName,
       sopa: order.sopa ?? "",
-      carne: order.carne,
+      carne: order.carne ?? "",
       carne2: order.carne2 ?? "",
       complements: [...order.complements],
       notes: order.notes ?? "",
