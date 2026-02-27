@@ -117,7 +117,7 @@ export default function SessionOrder() {
     _id: Id<"orders">;
     personName: string;
     sopa?: string;
-    carne: string;
+    carne?: string;
     carne2?: string;
     complements: string[];
     notes?: string;
