@@ -71,7 +71,8 @@ const orderValidator = v.object({
   _creationTime: v.number(),
   sessionId: v.id("sessions"),
   personName: v.string(),
-  carne: v.string(),
+  sopa: v.optional(v.string()),
+  carne: v.optional(v.string()),
   carne2: v.optional(v.string()),
   complements: v.array(v.string()),
   notes: v.optional(v.string()),
@@ -108,7 +109,8 @@ export const addOrder = mutation({
   args: {
     sessionId: v.id("sessions"),
     personName: v.string(),
-    carne: v.string(),
+    sopa: v.optional(v.string()),
+    carne: v.optional(v.string()),
     carne2: v.optional(v.string()),
     complements: v.array(v.string()),
     notes: v.optional(v.string()),
@@ -119,11 +121,13 @@ export const addOrder = mutation({
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Session not found");
     if (session.locked) throw new Error("No se aceptan más pedidos ni modificaciones.");
+    if (!args.sopa && !args.carne) throw new Error("Elige una sopa o una carne.");
     if (args.complements.length > 3) throw new Error("Máximo 3 complementos");
     return await ctx.db.insert("orders", {
       sessionId: args.sessionId,
       personName: args.personName.trim(),
-      carne: args.carne,
+      sopa: args.sopa?.trim() || undefined,
+      carne: args.carne?.trim() || undefined,
       carne2: args.carne2?.trim() || undefined,
       complements: args.complements,
       notes: args.notes?.trim() || undefined,
@@ -137,7 +141,8 @@ export const updateOrder = mutation({
     orderId: v.id("orders"),
     sessionId: v.id("sessions"),
     personName: v.string(),
-    carne: v.string(),
+    sopa: v.optional(v.string()),
+    carne: v.optional(v.string()),
     carne2: v.optional(v.string()),
     complements: v.array(v.string()),
     notes: v.optional(v.string()),
@@ -156,10 +161,12 @@ export const updateOrder = mutation({
     if (!isSessionOwner && !isOrderOwner) {
       throw new Error("No puedes editar este pedido.");
     }
+    if (!args.sopa && !args.carne) throw new Error("Elige una sopa o una carne.");
     if (args.complements.length > 3) throw new Error("Máximo 3 complementos");
     await ctx.db.patch("orders", args.orderId, {
       personName: args.personName.trim(),
-      carne: args.carne,
+      sopa: args.sopa?.trim() || undefined,
+      carne: args.carne?.trim() || undefined,
       carne2: args.carne2?.trim() || undefined,
       complements: args.complements,
       notes: args.notes?.trim() || undefined,
@@ -236,10 +243,15 @@ export const getSummaryText = query({
     orders.forEach((order, i) => {
       const ord = ordinals[i] ?? `plato ${i + 1}`;
       text += `El ${ord} con:\n`;
-      const carneMain = capitalize(order.carne);
-      const carneSecond = order.carne2 ? capitalize(order.carne2) : null;
-      const carneText = carneSecond ? `${carneMain} y ${carneSecond}` : carneMain;
-      text += `${carneText}.\n`;
+      if (order.sopa) {
+        text += `${capitalize(order.sopa)}.\n`;
+      }
+      if (order.carne) {
+        const carneMain = capitalize(order.carne);
+        const carneSecond = order.carne2 ? capitalize(order.carne2) : null;
+        const carneText = carneSecond ? `${carneMain} y ${carneSecond}` : carneMain;
+        text += `${carneText}.\n`;
+      }
       order.complements.forEach((c) => {
         text += `${capitalize(c)}.\n`;
       });

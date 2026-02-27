@@ -57,6 +57,7 @@ export default function SessionOrder() {
   const [confirmedName, setConfirmedName] = useState<string | null>(() =>
     sessionId ? getStoredName(sessionId) : null,
   );
+  const [sopa, setSopa] = useState("");
   const [carne, setCarne] = useState("");
   const [carne2, setCarne2] = useState("");
   const [complements, setComplements] = useState<string[]>([]);
@@ -75,11 +76,12 @@ export default function SessionOrder() {
   const [useManualMode, setUseManualMode] = useState(false);
   const [editForm, setEditForm] = useState<{
     personName: string;
+    sopa: string;
     carne: string;
     carne2: string;
     complements: string[];
     notes: string;
-  }>({ personName: "", carne: "", carne2: "", complements: [], notes: "" });
+  }>({ personName: "", sopa: "", carne: "", carne2: "", complements: [], notes: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -88,7 +90,7 @@ export default function SessionOrder() {
   const isSessionOwner =
     Boolean(session?.ownerId) && session?.ownerId === browserUserId;
   const hasMenu = Boolean(
-    menu && (menu.carnes.length > 0 || menu.complementos.length > 0),
+    menu && (menu.sopas.length > 0 || menu.carnes.length > 0 || menu.complementos.length > 0),
   );
   const storedName = sessionId ? getStoredName(sessionId) : null;
   const nameForStep = confirmedName ?? storedName;
@@ -114,6 +116,7 @@ export default function SessionOrder() {
   function openEditOrder(order: {
     _id: Id<"orders">;
     personName: string;
+    sopa?: string;
     carne: string;
     carne2?: string;
     complements: string[];
@@ -122,6 +125,7 @@ export default function SessionOrder() {
     setEditingOrderId(order._id);
     setEditForm({
       personName: order.personName,
+      sopa: order.sopa ?? "",
       carne: order.carne,
       carne2: order.carne2 ?? "",
       complements: [...order.complements],
@@ -152,15 +156,16 @@ export default function SessionOrder() {
     if (!sessionId || editingOrderId == null) return;
     setEditError(null);
     setEditSubmitting(true);
-    const { personName, carne, carne2, complements, notes } = editForm;
+    const { personName, sopa, carne, carne2, complements, notes } = editForm;
+    const sopaValue = sopa.trim();
     const carneValue = carne.trim();
     const carne2Value = carne2.trim();
-    if (!carneValue) {
-      setEditError("Elige una carne.");
+    if (!sopaValue && !carneValue) {
+      setEditError("Elige una sopa o una carne.");
       setEditSubmitting(false);
       return;
     }
-    if (hasMenu && complements.length === 0) {
+    if (!sopaValue && hasMenu && complements.length === 0) {
       setEditError("Elige al menos un complemento (máx. 3).");
       setEditSubmitting(false);
       return;
@@ -169,9 +174,10 @@ export default function SessionOrder() {
       orderId: editingOrderId,
       sessionId: sessionId as Id<"sessions">,
       personName: personName.trim(),
-      carne: carneValue,
-      carne2: carne2Value || undefined,
-      complements,
+      sopa: sopaValue || undefined,
+      carne: sopaValue ? undefined : carneValue || undefined,
+      carne2: sopaValue ? undefined : carne2Value || undefined,
+      complements: sopaValue ? [] : complements,
       notes: notes.trim() || undefined,
       clientId: browserUserId || undefined,
     })
@@ -240,12 +246,13 @@ export default function SessionOrder() {
         .slice(0, 3);
       complementsValue = fromText;
     }
-    if (!carneValue) {
-      setError("Elige una carne.");
+    const sopaValue = sopa.trim();
+    if (!sopaValue && !carneValue) {
+      setError("Elige una sopa o una carne.");
       setSubmitting(false);
       return;
     }
-    if (!isManual && complementsValue.length === 0) {
+    if (!sopaValue && !isManual && complementsValue.length === 0) {
       setError("Elige al menos un complemento (máx. 3).");
       setSubmitting(false);
       return;
@@ -253,9 +260,10 @@ export default function SessionOrder() {
     addOrder({
       sessionId: sessionId as Id<"sessions">,
       personName: name.trim(),
-      carne: carneValue,
-      carne2: carne2Value || undefined,
-      complements: complementsValue,
+      sopa: sopaValue || undefined,
+      carne: sopaValue ? undefined : carneValue || undefined,
+      carne2: sopaValue ? undefined : carne2Value || undefined,
+      complements: sopaValue ? [] : complementsValue,
       notes: notes.trim() || undefined,
       clientId: getOrCreateBrowserUserId() || undefined,
     })
@@ -472,7 +480,35 @@ export default function SessionOrder() {
 
               {hasMenu && !useManualMode ? (
                 <>
-                  <div>
+                  {menu!.sopas.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-sm font-medium">
+                        Sopa (opcional)
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {menu!.sopas.map((item) => (
+                          <label
+                            key={item}
+                            className={cn(
+                              "cursor-pointer rounded-md border px-3 py-2 text-sm transition-colors",
+                              sopa === item
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-input hover:bg-muted/50",
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={sopa === item}
+                              onChange={() => setSopa((prev) => prev === item ? "" : item)}
+                              className="sr-only"
+                            />
+                            {item}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className={cn(sopa && "pointer-events-none opacity-40")}>
                     <p className="mb-2 text-sm font-medium">
                       Carne (máx. 2)
                     </p>
@@ -528,7 +564,7 @@ export default function SessionOrder() {
                       })}
                     </div>
                   </div>
-                  <div>
+                  <div className={cn(sopa && "pointer-events-none opacity-40")}>
                     <p className="mb-2 text-sm font-medium">
                       Complementos (máx. 3)
                     </p>
@@ -705,7 +741,40 @@ export default function SessionOrder() {
                       </div>
                       {hasMenu ? (
                         <>
-                          <div>
+                          {menu!.sopas.length > 0 && (
+                            <div>
+                              <p className="mb-1 text-xs font-medium">
+                                Sopa (opcional)
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {menu!.sopas.map((item) => (
+                                  <label
+                                    key={item}
+                                    className={cn(
+                                      "cursor-pointer rounded border px-2 py-1 text-xs transition-colors",
+                                      editForm.sopa === item
+                                        ? "border-primary bg-primary/10 text-primary"
+                                        : "border-input hover:bg-muted/50",
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={editForm.sopa === item}
+                                      onChange={() =>
+                                        setEditForm((f) => ({
+                                          ...f,
+                                          sopa: f.sopa === item ? "" : item,
+                                        }))
+                                      }
+                                      className="sr-only"
+                                    />
+                                    {item}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className={cn(editForm.sopa && "pointer-events-none opacity-40")}>
                             <p className="mb-1 text-xs font-medium">
                               Carne (máx. 2)
                             </p>
@@ -775,7 +844,7 @@ export default function SessionOrder() {
                               })}
                             </div>
                           </div>
-                          <div>
+                          <div className={cn(editForm.sopa && "pointer-events-none opacity-40")}>
                             <p className="mb-1 text-xs font-medium">
                               Complementos (máx. 3)
                             </p>
@@ -949,12 +1018,19 @@ export default function SessionOrder() {
                         </div>
                       </div>
                       <p className="mt-1 text-muted-foreground">
-                        {order.carne2
-                          ? `${order.carne} + ${order.carne2}`
-                          : order.carne}
-                        {order.complements.length > 0 &&
-                          ` · ${order.complements.join(", ")}`}
-                        {order.notes && ` · ${order.notes}`}
+                        {[
+                          order.sopa,
+                          order.carne &&
+                            (order.carne2
+                              ? `${order.carne} + ${order.carne2}`
+                              : order.carne),
+                          order.complements.length > 0
+                            ? order.complements.join(", ")
+                            : null,
+                          order.notes,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </p>
                     </>
                   )}

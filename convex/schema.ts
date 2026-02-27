@@ -19,7 +19,8 @@ export default defineSchema({
   orders: defineTable({
     sessionId: v.id("sessions"),
     personName: v.string(),
-    carne: v.string(),
+    sopa: v.optional(v.string()),
+    carne: v.optional(v.string()),
     carne2: v.optional(v.string()),
     complements: v.array(v.string()),
     notes: v.optional(v.string()),
