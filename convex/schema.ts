@@ -6,6 +6,7 @@ export default defineSchema({
     deliveryTime: v.optional(v.string()),
     restaurantName: v.optional(v.string()),
     locked: v.optional(v.boolean()),
+    expiresAt: v.optional(v.number()),
     ownerId: v.optional(v.string()),
     menu: v.optional(
       v.object({

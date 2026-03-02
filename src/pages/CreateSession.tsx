@@ -14,6 +14,7 @@ export default function CreateSession() {
   const [menuText, setMenuText] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [restaurantName, setRestaurantName] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,6 +25,7 @@ export default function CreateSession() {
     try {
       const menu = menuText.trim() ? parseMenu(menuText) : undefined;
       const ownerId = getOrCreateBrowserUserId();
+      const expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : undefined;
       const sessionId: Id<"sessions"> = await createSession({
         deliveryTime: deliveryTime.trim() || undefined,
         restaurantName: restaurantName.trim() || undefined,
@@ -35,6 +37,7 @@ export default function CreateSession() {
             }
           : undefined,
         ownerId: ownerId || undefined,
+        expiresAt: expiresAtMs,
       });
       navigate(`/s/${sessionId}`);
     } catch (err) {
@@ -115,6 +118,32 @@ export default function CreateSession() {
                   "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 )}
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label
+                htmlFor="expiresAt"
+                className="mb-1 block text-sm font-medium text-foreground"
+              >
+                Cierre automático (opcional)
+              </label>
+              <input
+                id="expiresAt"
+                type="datetime-local"
+                value={expiresAt}
+                min={(() => {
+                  const d = new Date(Date.now() + 60_000);
+                  const pad = (n: number) => String(n).padStart(2, "0");
+                  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                })()}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                className={cn(
+                  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                  "focus:outline-none focus:ring-2 focus:ring-ring"
+                )}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Si lo indicas, el enlace se bloqueará automáticamente en esa fecha y hora.
+              </p>
             </div>
           </div>
 

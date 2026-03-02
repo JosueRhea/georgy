@@ -1,4 +1,5 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 const menuValidator = v.optional(
@@ -9,21 +10,42 @@ const menuValidator = v.optional(
   })
 );
 
+export const lockSessionInternal = internalMutation({
+  args: { sessionId: v.id("sessions") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+    if (!session) return null;
+    await ctx.db.patch("sessions", args.sessionId, { locked: true });
+    return null;
+  },
+});
+
 export const createSession = mutation({
   args: {
     deliveryTime: v.optional(v.string()),
     restaurantName: v.optional(v.string()),
     menu: menuValidator,
     ownerId: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
   },
   returns: v.id("sessions"),
   handler: async (ctx, args) => {
-    return await ctx.db.insert("sessions", {
+    const id = await ctx.db.insert("sessions", {
       deliveryTime: args.deliveryTime ?? undefined,
       restaurantName: args.restaurantName ?? undefined,
       menu: args.menu ?? undefined,
       ownerId: args.ownerId ?? undefined,
+      expiresAt: args.expiresAt ?? undefined,
     });
+    if (args.expiresAt) {
+      await ctx.scheduler.runAt(
+        args.expiresAt,
+        internal.sessions.lockSessionInternal,
+        { sessionId: id },
+      );
+    }
+    return id;
   },
 });
 
@@ -56,6 +78,7 @@ export const getSession = query({
       deliveryTime: v.optional(v.string()),
       restaurantName: v.optional(v.string()),
       locked: v.optional(v.boolean()),
+      expiresAt: v.optional(v.number()),
       ownerId: v.optional(v.string()),
       menu: menuValidator,
     }),

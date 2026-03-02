@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -9,6 +9,16 @@ import { cn } from "../lib/utils";
 import { getOrCreateBrowserUserId } from "../lib/browserUserId";
 
 const STORAGE_KEY_PREFIX = "georgy_session_name:";
+
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
 
 function getStoredName(sessionId: string): string | null {
   try {
@@ -84,6 +94,13 @@ export default function SessionOrder() {
   }>({ personName: "", sopa: "", carne: "", carne2: "", complements: [], notes: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!session?.expiresAt || session.locked) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [session?.expiresAt, session?.locked]);
 
   const menu = session?.menu;
   const browserUserId = getOrCreateBrowserUserId();
@@ -426,6 +443,19 @@ export default function SessionOrder() {
             No se aceptan más pedidos ni modificaciones.
             {isSessionOwner &&
               " Si quieres abrir de nuevo, pulsa «Desbloquear pedidos»."}
+          </div>
+        )}
+
+        {session.expiresAt && !isLocked && (
+          <div
+            role="status"
+            className="rounded-lg border border-blue-500/50 bg-blue-500/10 px-3 py-2 text-sm text-blue-700 dark:text-blue-400"
+          >
+            {session.expiresAt - now > 0 ? (
+              <>Cierre automático en <span className="font-mono font-medium">{formatCountdown(session.expiresAt - now)}</span></>
+            ) : (
+              "Cerrando pedidos…"
+            )}
           </div>
         )}
 
