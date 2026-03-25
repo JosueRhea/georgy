@@ -100,6 +100,7 @@ const orderValidator = v.object({
   complements: v.array(v.string()),
   notes: v.optional(v.string()),
   clientId: v.optional(v.string()),
+  paid: v.optional(v.boolean()),
 });
 
 export const listOrders = query({
@@ -221,6 +222,20 @@ export const deleteOrder = mutation({
     }
 
     await ctx.db.delete(args.orderId);
+    return null;
+  },
+});
+
+export const markOrderPaid = mutation({
+  args: {
+    orderId: v.id("orders"),
+    paid: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    await ctx.db.patch(args.orderId, { paid: args.paid });
     return null;
   },
 });

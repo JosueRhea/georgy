@@ -26,5 +26,6 @@ export default defineSchema({
     complements: v.array(v.string()),
     notes: v.optional(v.string()),
     clientId: v.optional(v.string()),
+    paid: v.optional(v.boolean()),
   }).index("by_session", ["sessionId"]),
 });

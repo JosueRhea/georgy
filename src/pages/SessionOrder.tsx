@@ -60,6 +60,7 @@ export default function SessionOrder() {
   const updateOrder = useMutation(api.sessions.updateOrder);
   const deleteOrder = useMutation(api.sessions.deleteOrder);
   const setSessionLocked = useMutation(api.sessions.setSessionLocked);
+  const markOrderPaid = useMutation(api.sessions.markOrderPaid);
 
   const [name, setName] = useState(() =>
     sessionId ? (getStoredName(sessionId) ?? "") : "",
@@ -128,6 +129,11 @@ export default function SessionOrder() {
     return (
       order.clientId != null && order.clientId === browserUserId
     );
+  }
+
+  function canTogglePaid(order: { clientId?: string }): boolean {
+    if (isSessionOwner) return true;
+    return order.clientId != null && order.clientId === browserUserId;
   }
 
   function openEditOrder(order: {
@@ -1021,8 +1027,41 @@ export default function SessionOrder() {
                   ) : (
                     <>
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium">{order.personName}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{order.personName}</span>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-xs font-medium",
+                              order.paid
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-600",
+                            )}
+                          >
+                            {order.paid ? "Pagado ✓" : "Pendiente pago"}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-1">
+                          {canTogglePaid(order) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "h-7 text-xs font-medium",
+                                order.paid
+                                  ? "border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                                  : "border-red-300 bg-red-50 text-red-600 hover:bg-red-100",
+                              )}
+                              onClick={() =>
+                                markOrderPaid({
+                                  orderId: order._id,
+                                  paid: !order.paid,
+                                })
+                              }
+                            >
+                              {order.paid ? "Pagado ✓" : "Ya pagué"}
+                            </Button>
+                          )}
                           {canEditOrder(order) && (
                             <Button
                               type="button"
